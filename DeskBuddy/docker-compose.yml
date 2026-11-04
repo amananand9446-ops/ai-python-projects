@@ -1,0 +1,29 @@
+services:
+  agent:
+    build: ./agent
+    container_name: deskbuddy-agent
+    ports:
+      - "9000:9000"
+    env_file: .env
+    environment:
+      - TOOLS_URL=http://tools:7000
+      - REDIS_HOST=redis
+    depends_on:
+      - tools
+      - redis
+    restart: unless-stopped
+
+  tools:
+    build: ./tools
+    container_name: deskbuddy-tools
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: deskbuddy-redis
+    volumes:
+      - agent_memory:/data
+    restart: unless-stopped
+
+volumes:
+  agent_memory:
