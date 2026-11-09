@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Travel Assistant</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6fb;
+            color: #1e293b;
+        }
+
+        header {
+            background: #123b5d;
+            color: white;
+            text-align: center;
+            padding: 35px 20px;
+        }
+
+        header h1 {
+            margin: 0 0 10px;
+        }
+
+        header p {
+            margin: 0;
+            color: #dbeafe;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: 35px auto;
+            padding: 25px;
+        }
+
+        .form-card, .result-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin: 16px 0 7px;
+            font-weight: bold;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 14px;
+            border: none;
+            border-radius: 7px;
+            background: #1677c8;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #105fa3;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            display: none;
+        }
+
+        #result {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        #status {
+            margin-top: 15px;
+            text-align: center;
+            color: #475569;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>✈️ AI Travel Assistant</h1>
+    <p>Your personal AI-powered travel planner</p>
+</header>
+
+<div class="container">
+
+    <div class="form-card">
+        <h2>Plan Your Next Trip</h2>
+
+        <form id="travelForm">
+
+            <label for="destination">Destination</label>
+            <input type="text" id="destination"
+                   placeholder="e.g. Goa" required>
+
+            <label for="departureDate">Departure Date</label>
+            <input type="date" id="departureDate" required>
+
+            <label for="returnDate">Return Date</label>
+            <input type="date" id="returnDate" required>
+
+            <label for="travellers">Number of Travellers</label>
+            <input type="number" id="travellers"
+                   min="1" value="2" required>
+
+            <label for="budget">Total Budget (INR)</label>
+            <input type="number" id="budget"
+                   min="1" placeholder="e.g. 20000" required>
+
+            <label for="preferences">Additional Preferences</label>
+            <textarea id="preferences"
+                      placeholder="e.g. Beaches, sightseeing, local food..."></textarea>
+
+            <button type="submit" id="submitBtn">
+                Generate Travel Plan
+            </button>
+
+            <p id="status"></p>
+
+        </form>
+    </div>
+
+    <div class="result-card" id="resultCard">
+        <h2>Your Travel Plan</h2>
+        <div id="result"></div>
+    </div>
+
+</div>
+
+<script>
+    const form = document.getElementById("travelForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const status = document.getElementById("status");
+    const resultCard = document.getElementById("resultCard");
+    const result = document.getElementById("result");
+
+    const departureInput = document.getElementById("departureDate");
+    const returnInput = document.getElementById("returnDate");
+
+    function getLocalDate() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+    }
+
+    departureInput.min = getLocalDate();
+    returnInput.min = getLocalDate();
+
+    departureInput.addEventListener("change", function() {
+        returnInput.min = departureInput.value;
+
+        if (returnInput.value && returnInput.value < departureInput.value) {
+            returnInput.value = "";
+        }
+    });
+
+    form.addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const destination = document.getElementById("destination").value;
+        const departureDate = departureInput.value;
+        const returnDate = returnInput.value;
+        const travellers = document.getElementById("travellers").value;
+        const budget = document.getElementById("budget").value;
+        const preferences = document.getElementById("preferences").value;
+
+        if (returnDate < departureDate) {
+            status.textContent = "Return date cannot be before departure date.";
+            return;
+        }
+
+        const start = new Date(departureDate + "T00:00:00Z");
+        const end = new Date(returnDate + "T00:00:00Z");
+
+        const days = Math.round(
+            (end - start) / (1000 * 60 * 60 * 24)
+        ) + 1;
+
+        const query = `Plan a ${days}-day trip to ${destination} for ${travellers} travellers with a total budget of INR ${budget}. Departure date: ${departureDate}. Return date: ${returnDate}. Include live weather, tourist attractions, hotel and restaurant recommendations, estimated budget, packing suggestions and a date-wise day-by-day itinerary. Additional preferences: ${preferences || "No additional preferences"}.`;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Generating...";
+        status.textContent = "Please wait while AI prepares your travel plan...";
+        resultCard.style.display = "none";
+
+        try {
+            const response = await fetch("/plan-trip", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    query: query,
+                    departure_date: departureDate,
+                    return_date: returnDate
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(
+                    errorData.detail || `Request failed: HTTP ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            result.textContent = data.travel_plan;
+            resultCard.style.display = "block";
+            status.textContent = "Your travel plan is ready!";
+
+        } catch (error) {
+            status.textContent = "Unable to generate the travel plan. " + error.message;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Generate Travel Plan";
+        }
+    });
+</script>
+
+</body>
+</html>
