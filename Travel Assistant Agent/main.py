@@ -1,4 +1,5 @@
 
+import logging
 from pathlib import Path
 from datetime import date
 
@@ -7,6 +8,9 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from travel_assistant import agent
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AI Travel Assistant",
@@ -49,11 +53,20 @@ def plan_trip(request: TravelRequest):
         f"Plan the itinerary specifically for these dates."
     )
 
-    response = agent(trip_query)
+    try:
+        response = agent(trip_query)
 
-    return {
-        "query": request.query,
-        "departure_date": str(request.departure_date),
-        "return_date": str(request.return_date),
-        "travel_plan": str(response)
-    }
+        return {
+            "query": request.query,
+            "departure_date": str(request.departure_date),
+            "return_date": str(request.return_date),
+            "travel_plan": str(response)
+        }
+
+    except Exception as error:
+        logger.exception("Travel planning failed")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(error).__name__}: {str(error)}"
+        )
